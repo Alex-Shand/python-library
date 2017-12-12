@@ -7,27 +7,22 @@ import urllib.request as r
 from urllib.error import URLError
 from bs4 import BeautifulSoup
 
-# TODO: Add optional header
-def get_data(url):
-    """Returns binary data downloaded from the url."""
-    req = r.Request(url)
+def get_data(url, header=None):
+    """Return binary data downloaded from a url."""
+    if header is None:
+        header = {}
+    req = r.Request(url, headers=header)
     data = r.urlopen(req).read()
     return data
 
 def get_html(url):
-    """Returns html downloaded from the url."""
+    """Return html downloaded from a url."""
     data = get_data(url)
     html = data.decode('utf-8')
     return html
 
-def get_download_url(html, regex):
-    """Extracts the download url from the given html using a regex, returns None if it fails."""
-    match = regex.search(html)
-    if match:
-        return match.group(1)
-
 def resolve_filename_clash(fname):
-    """Ensures the proposed filename doesn't clash with any files already on disk"""
+    """Ensure the proposed filename doesn't clash with any files already on disk"""
 
     # Start by inserting a one before the extension
     if os.path.isfile(fname):
@@ -43,18 +38,6 @@ def resolve_filename_clash(fname):
         i += 1
 
     return fname
-
-def filter_urls(urls, downloadlog):
-    """Removes urls known to have been downloaded previously"""
-    try:
-        with open(downloadlog) as log:
-            downloaded = set(log.read().split())
-
-        urls = set(urls) - downloaded
-    except FileNotFoundError:
-        pass
-
-    return urls
 
 def download(url, fname):
     """Downloads data from the url, returns the filename written to.
@@ -121,25 +104,28 @@ def download_list(urls, filter_fun=lambda x: True, targetdir='.', fnamefunc=None
         time.sleep(30) # Short pause seems to decrease failure rate
         download_from_page(url, filter_fun, targetdir, fnamefunc)
 
-# If download is run as a program it runs a basic command line downloader
-if __name__ == '__main__':
+def _main(args):
+    """Downloader program using the functions from this module, takes commandline arguments"""
 
-    # Builtin exit shouldn't be used in programs
-    from sys import argv, exit # pylint: disable=redefined-builtin
-
-    USAGE = '''
+    usage = '''
 Usage: download.py file regex
 file: File containing urls to download, one per line
 regex: Python regular expression to identify the direct link to the desired file in the page source
 '''
 
-    if len(argv) < 3:
-        exit(USAGE)
+    if len(args) < 3:
+        exit(usage)
 
-    FILE = argv[1]
-    REGEX = re.compile(argv[2])
+    file = args[1]
+    regex = re.compile(args[2])
 
-    with open(FILE) as f:
-        URLS = f.read().split()
+    with open(file) as url_file:
+        urls = url_file.read().split()
 
-    download_list(URLS, REGEX)
+    download_list(urls, regex)
+
+# If download is run as a program it runs a basic command line downloader
+if __name__ == '__main__':
+    # Builtin exit shouldn't be used in programs
+    from sys import argv, exit # pylint: disable=redefined-builtin
+    _main(argv)
