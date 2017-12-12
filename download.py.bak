@@ -70,6 +70,14 @@ def download(url, fname):
         file.write(data)
     return fname
 
+# TODO: There's probably some kind of logging library that does this better
+def logurl(log, url, kind=''):
+    """Writes the url to the specified log file optionally prepending a type"""
+    if kind:
+        kind += ': '
+    with open(log, 'a') as logfile:
+        logfile.write('{0}{1}\n'.format(kind, url))
+
 def extract_hrefs_from_page(url, tag=None):
     """Extract the hrefs from a page, optionally restricted to a tag."""
     try:
@@ -77,8 +85,7 @@ def extract_hrefs_from_page(url, tag=None):
     except URLError:
         # Returns an empty generator
         return
-        # This is unreachable but still required to get an empty generator out
-        yield # pylint: disable=unreachable
+        yield
     soup = BeautifulSoup(page, 'lxml')
     if tag is None:
         hrefs = soup(href=True)
@@ -86,40 +93,67 @@ def extract_hrefs_from_page(url, tag=None):
         hrefs = soup(tag, href=True)
     yield from map(lambda x: x['href'], hrefs)
 
-def download_from_page(url, filter_fun=lambda x: True, targetdir='.', fnamefunc=None):
-    """Download links matching a given condition from a url."""
+# TODO: Get rid of some of the arguments
+def download_from_page(url, regex, targetdir=None, fnamefunc=None, fnametarget=False):
+    """Download links matching a given regex from the url."""
 
-    # Function to extract filename, gets the url of the page the links are
-    # extracted from and the url that the file is acutally downloaded from
-    def getfname(_, download_url):
-        """Take the last part of the download url as the filename"""
-        return download_url.split('/')[-1]
+    def getfname(url, ext):
+        """Take the last part of the url as a filename"""
+        return url.split('/')[-1].split('.')[0] + ext
 
     # If a replacement for getfname has been supplied use it
-    if fnamefunc is not None:
+    if fnamefunc:
         getfname = fnamefunc
 
-    # Produce an absolute path
-    targetdir = os.path.abspath(targetdir)
-    # And recursivly make it if it doesn't exist
-    if not os.path.isdir(targetdir):
-        os.makedirs(targetdir)
+    # If a target directory has been supplied
+    if targetdir is not None:
+        targetdir = os.path.abspath(targetdir)
+        # Put the fail and success logs in the target directiory
+        faillog = os.path.join(targetdir, faillog)
+        succlog = os.path.join(targetdir, succlog)
+        # And recursivly make it if it doesn't exist
+        if not os.path.isdir(targetdir):
+            os.makedirs(targetdir)
 
-    urls = filter(filter_fun, extract_hrefs_from_page(url))
+    urls = filter(lambda x: regex.match(x), extract_hrefs_from_page(url))
 
     for download_url in urls:
-        fname = getfname(url, download_url)
-        fname = os.path.join(targetdir, fname)
-        try:
-            download(download_url, fname)
-        except URLError:
-            return
+        # Empty string if the url doesn't contain a '.'
+        ext = os.path.splitext(download_url)[1]
+        if fnametarget:
+            fname = getfname(download_url, ext)
+        else:
+            fname = getfname(url, ext)
+            
+            # If a target directory has been supplied join it to the filename
+            if targetdir:
+                fname = os.path.join(targetdir, fname)
+                
+                # Same as gethtml
+                try:
+                    download(download_url, fname)
+                    print('done\n', flush=True)
+                except URLError:
+                    print('failed\n', flush=True)
+                    # Log a download error including both urls
+                    logurl(faillog, '{0}|{1}'.format(url, download_url), 'DOWNLOAD')
+                    return
+                # Log a successful download
+                logurl(succlog, url)
+                
+def download_list(urls, regex, targetdir=None, fnamefunc=None, fnametarget=False,
+                  faillog='0FAILS', succlog='0DOWNLOADED'):
+    """Download a list of urls."""
 
-def download_list(urls, filter_fun=lambda x: True, targetdir='.', fnamefunc=None):
-    """Download links matching a given condition from a list of urls."""
-    for url in urls:
+    # Remove urls known to be downloaded
+    filter_urls(urls, succlog)
+
+    length = len(urls)
+    for i, url in enumerate(urls):
         time.sleep(30) # Short pause seems to decrease failure rate
-        download_from_page(url, filter_fun, targetdir, fnamefunc)
+        print('{0}/{1}'.format(i+1, length), flush=True)
+        download_from_page(url, regex, targetdir, fnamefunc, fnametarget, faillog,
+                           succlog)
 
 # If download is run as a program it runs a basic command line downloader
 if __name__ == '__main__':
