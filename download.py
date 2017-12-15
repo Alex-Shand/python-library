@@ -39,16 +39,19 @@ def resolve_filename_clash(fname):
 
     return fname
 
-def download(url, fname):
+def download(url, fname, force=False):
     """Downloads data from the url, returns the filename written to.
 
     Arguments:
     url -- The url to download
     fname -- The filename to attempt to write to, will be changed
              if it clashes
+    force -- If True don't resolve clashes
     """
     data = get_data(url)
-    fname = resolve_filename_clash(fname)
+    # Resolve filename clashes unless told otherwise
+    if not force:
+        fname = resolve_filename_clash(fname)
     with open(fname, 'wb') as file:
         file.write(data)
     return fname
