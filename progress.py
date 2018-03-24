@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 class progress():
     def __init__(self, maxim, bar_width = 80, chars = '[# ]', supply_endings = True):
         self.maxim = maxim

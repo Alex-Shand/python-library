@@ -5,6 +5,7 @@ import os
 import time
 import urllib.request as r
 from urllib.error import URLError
+
 from bs4 import BeautifulSoup
 
 def get_data(url, header=None):
@@ -22,7 +23,8 @@ def get_html(url):
     return html
 
 def resolve_filename_clash(fname):
-    """Ensure the proposed filename doesn't clash with any files already on disk"""
+    """Ensure the proposed filename doesn't clash with any files already on 
+    disk."""
 
     # Start by inserting a one before the extension
     if os.path.isfile(fname):
@@ -42,12 +44,15 @@ def resolve_filename_clash(fname):
 def download(url, fname, force=False):
     """Downloads data from the url, returns the filename written to.
 
-    Arguments:
-    url -- The url to download
+    Required Arguments:
+    url -- The url to download.
     fname -- The filename to attempt to write to, will be changed
-             if it clashes
-    force -- If True don't resolve clashes
+             if it clashes.
+
+    Optional Arguments:
+    force -- If True don't resolve clashes.
     """
+
     data = get_data(url)
     # Resolve filename clashes unless told otherwise
     if not force:
@@ -57,7 +62,16 @@ def download(url, fname, force=False):
     return fname
 
 def extract_hrefs_from_page(url, tag=None):
-    """Extract the hrefs from a page, optionally restricted to a tag."""
+    """Return a generator containing all hrefs from a page, optionally
+    restricted to a tag.
+
+    Required Arguments:
+    url -- The url of the web page to search.
+
+    Optional Arguments:
+    tag -- Restrict the search to this tag.
+    """
+
     try:
         page = get_html(url)
     except URLError:
@@ -70,20 +84,27 @@ def extract_hrefs_from_page(url, tag=None):
         hrefs = soup(href=True)
     else:
         hrefs = soup(tag, href=True)
+
     yield from map(lambda x: x['href'], hrefs)
 
-def download_from_page(url, filter_fun=lambda x: True, targetdir='.', fnamefunc=None):
-    """Download links matching a given condition from a url."""
+def download_from_page(url, filterfun=None, targetdir='.', fnamefunc=None):
+    """Download all links from a page.
 
-    # Function to extract filename, gets the url of the page the links are
-    # extracted from and the url that the file is acutally downloaded from
-    def getfname(_, download_url):
-        """Take the last part of the download url as the filename"""
-        return download_url.split('/')[-1]
+    Required Arguments:
+    url -- Source page
 
-    # If a replacement for getfname has been supplied use it
-    if fnamefunc is not None:
-        getfname = fnamefunc
+    Optional Arguments:
+    filterfun -- Only download links where filterfun(link) == True
+    targetdir -- Files go here
+    fnamefunc -- Recieves url and the link currently being downloaded. Return
+                 value will be used as the filename for the download.
+    """
+
+    # Set default functions as required
+    if fnamefunc is None:
+        fnamefunc = lambda _, url: url.split('/')[-1]
+    if filterfun is None:
+        filterfun = lambda _: True
 
     # Produce an absolute path
     targetdir = os.path.abspath(targetdir)
@@ -91,29 +112,39 @@ def download_from_page(url, filter_fun=lambda x: True, targetdir='.', fnamefunc=
     if not os.path.isdir(targetdir):
         os.makedirs(targetdir)
 
-    urls = filter(filter_fun, extract_hrefs_from_page(url))
+    urls = filter(filterfun, extract_hrefs_from_page(url))
 
     for download_url in urls:
-        fname = getfname(url, download_url)
+        fname = fnamefunc(url, download_url)
         fname = os.path.join(targetdir, fname)
         try:
             download(download_url, fname)
         except URLError:
             return
 
-def download_list(urls, filter_fun=lambda x: True, targetdir='.', fnamefunc=None):
-    """Download links matching a given condition from a list of urls."""
+def download_list(urls, filterfun=None, targetdir='.', fnamefunc=None):
+    """Download links matching a given condition from a list of urls.
+
+    Optional Arguments:
+    filterfun -- Only download links where filterfun(link) == True
+    targetdir -- Files go here
+    fnamefunc -- Recieves url and the link currently being downloaded. Return
+                 value will be used as the filename for the download.
+    """
+    
     for url in urls:
         time.sleep(30) # Short pause seems to decrease failure rate
-        download_from_page(url, filter_fun, targetdir, fnamefunc)
+        download_from_page(url, filterfun, targetdir, fnamefunc)
 
 def _main(args):
-    """Downloader program using the functions from this module, takes commandline arguments"""
+    """Downloader program using the functions from this module, takes commandline
+    arguments."""
 
     usage = '''
 Usage: download.py file regex
 file: File containing urls to download, one per line
-regex: Python regular expression to identify the direct link to the desired file in the page source
+regex: Python regular expression to identify the direct link to the desired file
+in the page source
 '''
 
     if len(args) < 3:
