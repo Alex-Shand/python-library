@@ -55,7 +55,7 @@ def collect(res, side=None):
 
     Optional Arguments:
     side -- If present side will be passed each item recived from the pipeline,
-    it's return value is ignored.
+    its return value is ignored.
     """
 
     res = []
@@ -121,7 +121,7 @@ def sink():
 ## Middle ##
 
 @coroutine
-def afilter(cond, then):
+def cfilter(cond, then):
     """Coroutine equivalent of builtin filter."""
     while True:
         item = (yield)
@@ -129,7 +129,7 @@ def afilter(cond, then):
             then.send(item)
 
 @coroutine
-def amap(trans, then):
+def cmap(trans, then):
     """Coroutine equivalent of builtin map."""
     while True:
         item = (yield)
@@ -145,7 +145,7 @@ def split_on(string, then):
             then.send(item)
 
 @coroutine
-def aenumerate(then):
+def cenumerate(then):
     """Coroutine equivalent of builtin enumerate."""
     i = 0
     while True:

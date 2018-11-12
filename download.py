@@ -16,9 +16,9 @@ def get_data(url, header=None):
     data = r.urlopen(req).read()
     return data
 
-def get_html(url):
+def get_html(url, header=None):
     """Return html downloaded from a url."""
-    data = get_data(url)
+    data = get_data(url, header)
     html = data.decode('utf-8')
     return html
 
