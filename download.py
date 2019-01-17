@@ -3,27 +3,49 @@
 import re
 import os
 import time
-import urllib.request as r
+import urllib.request as request
 from urllib.error import URLError
+from http.client import IncompleteRead
+from argparse import ArgumentParser
 
 from bs4 import BeautifulSoup
 
+class DownloadError(Exception):
+    """Wrapper for the various things urlopen might throw."""
+    def __init__(self, inner):
+        self.inner = inner
+    def __repr__(self):
+        return repr(inner)
+    
 def get_data(url, header=None):
-    """Return binary data downloaded from a url."""
+    """Return binary data downloaded from a url.
+
+    Throws:
+    DownloadError -- If download fails for any reason.
+    """
+
     if header is None:
         header = {}
-    req = r.Request(url, headers=header)
-    data = r.urlopen(req).read()
+    req = request.Request(url, headers=header)
+    try:
+        data = request.urlopen(req).read()
+    except (URLError, IncompleteRead) as e:
+        raise DownloadError(e)
     return data
 
 def get_html(url, header=None):
-    """Return html downloaded from a url."""
+    """Return html downloaded from a url.
+
+    Throws:
+    DownloadError -- If download fails for any reason.
+    """
+
     data = get_data(url, header)
     html = data.decode('utf-8')
     return html
 
 def resolve_filename_clash(fname):
-    """Ensure the proposed filename doesn't clash with any files already on 
+    """Ensure the proposed filename doesn't clash with any files already on
     disk."""
 
     # Start by inserting a one before the extension
@@ -41,7 +63,7 @@ def resolve_filename_clash(fname):
 
     return fname
 
-def download(url, fname, force=False):
+def download(url, fname, header=None, force=False):
     """Downloads data from the url, returns the filename written to.
 
     Required Arguments:
@@ -51,17 +73,24 @@ def download(url, fname, force=False):
 
     Optional Arguments:
     force -- If True don't resolve clashes.
+
+    Throws:
+    DownloadError -- If download fails for any reason.
     """
 
-    data = get_data(url)
+    data = get_data(url, header=header)
+    resp = urlopen(url)
     # Resolve filename clashes unless told otherwise
     if not force:
         fname = resolve_filename_clash(fname)
     with open(fname, 'wb') as file:
-        file.write(data)
+        for chunk in iter(lambda: resp.read(16 * 1024), ''):
+            if not chunk:
+                break
+            file.write(data)
     return fname
 
-def extract_hrefs_from_page(url, tag=None):
+def extract_hrefs_from_page(url, header=None, tag=None):
     """Return a generator containing all hrefs from a page, optionally
     restricted to a tag.
 
@@ -73,8 +102,8 @@ def extract_hrefs_from_page(url, tag=None):
     """
 
     try:
-        page = get_html(url)
-    except URLError:
+        page = get_html(url, header=header)
+    except DownloadError:
         # Returns an empty generator
         return
         # This is unreachable but still required to get an empty generator out
@@ -87,7 +116,7 @@ def extract_hrefs_from_page(url, tag=None):
 
     yield from map(lambda x: x['href'], hrefs)
 
-def download_from_page(url, filterfun=None, targetdir='.', fnamefunc=None):
+def download_from_page(url, filterfun=None, targetdir='.', fnamefunc=None, header=None):
     """Download all links from a page.
 
     Required Arguments:
@@ -118,12 +147,15 @@ def download_from_page(url, filterfun=None, targetdir='.', fnamefunc=None):
         fname = fnamefunc(url, download_url)
         fname = os.path.join(targetdir, fname)
         try:
-            download(download_url, fname)
+            download(download_url, fname, header=header)
         except URLError:
             return
 
-def download_list(urls, filterfun=None, targetdir='.', fnamefunc=None):
+def download_list(urls, filterfun=None, targetdir='.', fnamefunc=None, header=None):
     """Download links matching a given condition from a list of urls.
+
+    Required Arguments:
+    urls -- Source pages
 
     Optional Arguments:
     filterfun -- Only download links where filterfun(link) == True
@@ -131,27 +163,15 @@ def download_list(urls, filterfun=None, targetdir='.', fnamefunc=None):
     fnamefunc -- Recieves url and the link currently being downloaded. Return
                  value will be used as the filename for the download.
     """
-    
+
     for url in urls:
         time.sleep(30) # Short pause seems to decrease failure rate
-        download_from_page(url, filterfun, targetdir, fnamefunc)
+        download_from_page(url, filterfun, targetdir, fnamefunc, header=header)
 
-def _main(args):
-    """Downloader program using the functions from this module, takes commandline
-    arguments."""
+def main(file, regex):
+    """Main."""
 
-    usage = '''
-Usage: download.py file regex
-file: File containing urls to download, one per line
-regex: Python regular expression to identify the direct link to the desired file
-in the page source
-'''
-
-    if len(args) < 3:
-        exit(usage)
-
-    file = args[1]
-    regex = re.compile(args[2])
+    regex = re.compile(regex)
 
     with open(file) as url_file:
         urls = url_file.read().split()
@@ -160,6 +180,11 @@ in the page source
 
 # If download is run as a program it runs a basic command line downloader
 if __name__ == '__main__':
-    # Builtin exit shouldn't be used in programs
-    from sys import argv, exit # pylint: disable=redefined-builtin
-    _main(argv)
+    parser = ArgumentParser()
+    parser.add_argument('file',
+                        help='File containing source urls to download from, one'
+                        'per line')
+    parser.add_argument('-r', '--regex', default='.*',
+                        help='Python regular expression to identify the correct'
+                        ' link(s) in the page, defaults to ".*"')
+    main(**(vars(parser.parse_args())))

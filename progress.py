@@ -16,13 +16,11 @@ class progress():
                 end = '\r'
         else:
             end = ''
-        onePercent = self.maxim / 100
-        percentage = count / onePercent
-        fraction = percentage / 100
+        fraction = count / self.maxim
         chars = int(self.bar_width * fraction)
-        bar = '{}{}{}{}{}{}'.format(self.left_end, self.full * chars,
-                                    self.empty * (self.bar_width - chars),
-                                    self.right_end, '{:6}%'.format(percentage), end)
+        bar = '{}{}{}{} {:%}{}'.format(self.left_end, self.full * chars,
+                                       self.empty * (self.bar_width - chars),
+                                       self.right_end, fraction, end)
         return bar
 
     
