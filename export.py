@@ -6,7 +6,9 @@ import sys
 def export(func):
     """Module level export decorator, appends function name to __all__."""
     mod = sys.modules[func.__module__]
-    getattr(mod, '__all__', []).append(func.__name__)
+    all_list = getattr(mod, '__all__', [])
+    all_list.append(func.__name__)
+    setattr(mod, '__all__', all_list)
     return func
 export(export)
 
@@ -22,5 +24,7 @@ def collect_exports(cls):
     """Fill the __all__ list of a class with functions marked with _exported."""
     for name, func in cls.__dict__.items():
         if getattr(func, '_exported', False):
-            getattr(cls, '__all__', []).append(name)
+            all_list = getattr(cls, '__all__', [])
+            all_list.append(func.__name__)
+            setattr(cls, '__all__', all_list)
     return cls
