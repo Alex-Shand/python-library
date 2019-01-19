@@ -1,11 +1,14 @@
 """Coroutine utility functions."""
 
-from functools import wraps as _wraps
+from functools import wraps
+
+from export import export
 
 # From: http://www.dabeaz.com/coroutines/index.html
+@export
 def coroutine(func):
     """Prime the given function as a coroutine."""
-    @_wraps(func)
+    @wraps(func)
     def _coroutine(*args, **kwargs): # pylint: disable=missing-docstring
         cr = func(*args, **kwargs) # pylint: disable=invalid-name
         cr.send(None)
@@ -14,6 +17,7 @@ def coroutine(func):
 
 ## Start ##
 
+@export
 def start(iterable, then):
     """Send an iterable to a coroutine.
 
@@ -25,6 +29,7 @@ def start(iterable, then):
     for item in iterable:
         then.send(item)
 
+@export
 def from_file(fname, then, by=None): # pylint: disable=invalid-name
     """Send file data to a coroutine.
 
@@ -46,6 +51,7 @@ def from_file(fname, then, by=None): # pylint: disable=invalid-name
 
 ## End ##
 
+@export
 @coroutine
 def collect(res, side=None):
     """Convert a coroutine into a list.
@@ -66,6 +72,7 @@ def collect(res, side=None):
         side(item)
         res.append(item)
 
+@export
 @coroutine
 def printer(wrap=None):
     """Print the 'return values' of a coroutine.
@@ -80,6 +87,7 @@ def printer(wrap=None):
     while True:
         print(wrap((yield)))
 
+@export
 @coroutine
 def to_files(mode='w'):
     """Write each item sent from a coroutine to a file.
@@ -92,6 +100,7 @@ def to_files(mode='w'):
         with open(fname, mode) as file:
             file.write(str(data))
 
+@export
 @coroutine
 def to_file(fname, truncate=False):
     """Append each item from a coroutine to a file.
@@ -112,6 +121,7 @@ def to_file(fname, truncate=False):
         with open(fname, 'a') as file:
             file.write(text)
 
+@export
 @coroutine
 def sink():
     """Do nothing with a coroutine."""
@@ -120,6 +130,7 @@ def sink():
 
 ## Middle ##
 
+@export
 @coroutine
 def cfilter(cond, then):
     """Coroutine equivalent of builtin filter."""
@@ -128,6 +139,7 @@ def cfilter(cond, then):
         if cond(item):
             then.send(item)
 
+@export
 @coroutine
 def cmap(trans, then):
     """Coroutine equivalent of builtin map."""
@@ -135,6 +147,7 @@ def cmap(trans, then):
         item = (yield)
         then.send(trans(item))
 
+@export
 @coroutine
 def split_on(string, then):
     """Split an incomming string on a delimiter."""
@@ -144,6 +157,7 @@ def split_on(string, then):
         for item in items:
             then.send(item)
 
+@export
 @coroutine
 def cenumerate(then):
     """Coroutine equivalent of builtin enumerate."""
