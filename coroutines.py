@@ -9,7 +9,7 @@ from export import export
 def coroutine(func):
     """Prime the given function as a coroutine."""
     @wraps(func)
-    def _coroutine(*args, **kwargs): # pylint: disable=missing-docstring
+    def _coroutine(*args, **kwargs): # type: ignore # pylint: disable=missing-docstring
         cr = func(*args, **kwargs) # pylint: disable=invalid-name
         cr.send(None)
         return cr
@@ -149,11 +149,11 @@ def cmap(trans, then):
 
 @export
 @coroutine
-def split_on(string, then):
-    """Split an incomming string on a delimiter."""
+def split_on(delim, then):
+    """Split an incoming string on a delimiter."""
     while True:
         to_split = (yield)
-        items = to_split.split(string)
+        items = to_split.split(delim)
         for item in items:
             then.send(item)
 
