@@ -1,24 +1,30 @@
 """Coroutine utility functions."""
 
 from functools import wraps
+from typing import (cast, Callable, Generator, Iterable, Iterator, List,
+                    Optional, Tuple, TypeVar)
 
 from export import export
+from type_aliases import Function
+
+T = TypeVar('T') # pylint: disable=invalid-name
+S = TypeVar('S') # pylint: disable=invalid-name
 
 # From: http://www.dabeaz.com/coroutines/index.html
 @export
-def coroutine(func):
+def coroutine(func: Function) -> Function:
     """Prime the given function as a coroutine."""
     @wraps(func)
     def _coroutine(*args, **kwargs): # type: ignore # pylint: disable=missing-docstring
         cr = func(*args, **kwargs) # pylint: disable=invalid-name
         cr.send(None)
         return cr
-    return _coroutine
+    return cast(Function, _coroutine)
 
 ## Start ##
 
 @export
-def start(iterable, then):
+def start(iterable: Iterator[T], then: Generator[None, T, None]) -> None:
     """Send an iterable to a coroutine.
 
     Required Arguments:
@@ -30,7 +36,11 @@ def start(iterable, then):
         then.send(item)
 
 @export
-def from_file(fname, then, by=None): # pylint: disable=invalid-name
+def from_file( # pylint: disable=invalid-name
+        fname: str,
+        then: Generator[None, str, None],
+        by: Optional[Callable[[str], Iterable[str]]] = None
+) -> None:
     """Send file data to a coroutine.
 
     Required Arguments:
@@ -53,7 +63,10 @@ def from_file(fname, then, by=None): # pylint: disable=invalid-name
 
 @export
 @coroutine
-def collect(res, side=None):
+def collect(
+        res: List[T],
+        side: Optional[Callable[[T], None]] = None
+) -> Generator[None, T, None]:
     """Convert a coroutine into a list.
 
     Required Arguments:
@@ -74,7 +87,9 @@ def collect(res, side=None):
 
 @export
 @coroutine
-def printer(wrap=None):
+def printer(
+        wrap: Optional[Callable[[str], str]] = None
+) -> Generator[None, str, None]:
     """Print the 'return values' of a coroutine.
 
     Optional Arguments:
@@ -89,7 +104,7 @@ def printer(wrap=None):
 
 @export
 @coroutine
-def to_files(mode='w'):
+def to_files(mode: str = 'w') -> Generator[None, Tuple[str, str], None]:
     """Write each item sent from a coroutine to a file.
 
     Expects the sending coroutine to send a tuple (filename, data).
@@ -102,7 +117,7 @@ def to_files(mode='w'):
 
 @export
 @coroutine
-def to_file(fname, truncate=False):
+def to_file(fname: str, truncate: bool = False) -> Generator[None, str, None]:
     """Append each item from a coroutine to a file.
 
     Required Arguments:
@@ -123,7 +138,7 @@ def to_file(fname, truncate=False):
 
 @export
 @coroutine
-def sink():
+def sink() -> Generator[None, T, None]:
     """Do nothing with a coroutine."""
     while True:
         (yield)
@@ -132,7 +147,10 @@ def sink():
 
 @export
 @coroutine
-def cfilter(cond, then):
+def cfilter(
+        cond: Callable[[T], bool],
+        then: Generator[None, T, None]
+) -> Generator[None, T, None]:
     """Coroutine equivalent of builtin filter."""
     while True:
         item = (yield)
@@ -141,7 +159,10 @@ def cfilter(cond, then):
 
 @export
 @coroutine
-def cmap(trans, then):
+def cmap(
+        trans: Callable[[T], S],
+        then: Generator[None, S, None]
+) -> Generator[None, T, None]:
     """Coroutine equivalent of builtin map."""
     while True:
         item = (yield)
@@ -149,7 +170,10 @@ def cmap(trans, then):
 
 @export
 @coroutine
-def split_on(delim, then):
+def split_on(
+        delim: str,
+        then: Generator[None, str, None]
+) -> Generator[None, str, None]:
     """Split an incoming string on a delimiter."""
     while True:
         to_split = (yield)
@@ -159,7 +183,9 @@ def split_on(delim, then):
 
 @export
 @coroutine
-def cenumerate(then):
+def cenumerate(
+        then: Generator[None, Tuple[int, T], None]
+) -> Generator[None, T, None]:
     """Coroutine equivalent of builtin enumerate."""
     i = 0
     while True:
