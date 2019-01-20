@@ -1,10 +1,13 @@
 """Coroutine utility functions."""
 
 from functools import wraps
-from typing import (cast, Callable, Generator, Iterable, Iterator, List,
-                    Optional, Tuple, TypeVar)
+
+from typing import (
+    cast, Callable, Generator, Iterable, Iterator, List, Optional, Tuple, TypeVar
+)
 
 from export import export
+
 from type_aliases import Function
 
 T = TypeVar('T') # pylint: disable=invalid-name

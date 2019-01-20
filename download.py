@@ -3,12 +3,19 @@
 import os
 from pathlib import Path
 
+from typing import Dict, Iterator, Optional
+
 import requests
 
 from export import export
 
+from type_aliases import Pathlike
+
 @export
-def get_data(url, headers=None):
+def get_data(
+        url: str,
+        headers: Optional[Dict[str, str]] = None
+) -> Iterator[bytes]:
     """Return binary data downloaded from a url.
 
     Optional Arguments:
@@ -26,7 +33,7 @@ def get_data(url, headers=None):
     yield from resp.iter_content(chunk_size=128)
 
 @export
-def get_html(url, headers=None):
+def get_html(url: str, headers: Optional[Dict[str, str]] = None) -> str:
     """Return html downloaded from a url.
 
     Optional Arguments:
@@ -41,7 +48,7 @@ def get_html(url, headers=None):
     return html
 
 @export
-def resolve_filename_clash(fname):
+def resolve_filename_clash(fname: Pathlike) -> Path:
     """Ensure the proposed filename doesn't clash with any files already on
     disk."""
 
@@ -63,7 +70,12 @@ def resolve_filename_clash(fname):
     return Path(fname)
 
 @export
-def download(url, fname, headers=None, force=False):
+def download(
+        url: str,
+        fname: Pathlike,
+        headers: Optional[Dict[str, str]] = None,
+        force: bool = False
+) -> Path:
     """Downloads data from the url, returns the filename written to.
 
     Required Arguments:
